@@ -3,12 +3,14 @@ program RoboGame;
 uses Graph, Crt, DOS;
 const FacWidth = 11; FacHeigth = 18; { ширина и высота поля }
       ShansO = 500; ShansP = 12; ShansNewP = 22; { базовые шансы генерации ям и роботов }
-      MaxWait = 5; Hearts = 3; { максимальное количество пропусков хода и количество жизней }
+      MaxWait = 5; Hearts = 4; { максимальное количество пропусков хода и количество жизней }
 var  FieldOfWar: array [ 1..FacHeigth, 1..FacWidth ] of SmallInt;
         { Игровое поле: 0 - яма, 1 - ничего, 2 - робот }
      PlayerX, PlayerY, ExitX, ExitY, { координаты игрока и выхода }
+     SputnicX, SputnicY, { координаты напарника }
      Armor, Level, Lives { текущие значения боеприпасов, уровня и жизней }: SmallInt;
      Pts: Integer; { очки }
+     SputnicAlive, { есть ли рядом спутник? }
      GameOver, { нужно ли закончить игру? }
      Loaded, { TRUE, если только что была загружено сохранение }
      Legend { показывается ли красивая подсказка с расшифровкой символов }: Boolean;
@@ -50,7 +52,7 @@ End;
 
 procedure Load;
 	{ Загружает сохранёнку }
-Var  F: Text; S: String;
+Var  F: Text;
 Begin
         Assign( F, 'C:\Documents and Settings\save.sss' );
         Reset( F );
@@ -104,7 +106,22 @@ Begin
         begin
                 for j := 1 to FacWidth do
                 begin
-                        if ( PlayerX = j ) and ( PlayerY = i ) then
+
+                        if SputnicAlive and ( PlayerX = j ) and ( PlayerY = i ) and ( SputnicX = j ) and ( SputnicY = i ) then
+                        begin
+                                SetColor( Blue );
+                                OutTextXY( X + 2, Y + 1, chr( 12 ) );
+                                SetColor( Yellow );
+                                OutTextXY( X, Y, chr( 12 ) );
+                                SetColor( White )
+                        end
+                        else if SputnicAlive and ( SputnicX = j ) and ( SputnicY = i ) then
+                        begin
+                                SetColor( Blue );
+                                OutTextXY( X, Y, chr( 12 ) );
+                                SetColor( White )
+                        end
+                        else if ( PlayerX = j ) and ( PlayerY = i ) then
                         begin
                                 SetColor( Yellow );
                                 OutTextXY( X, Y, chr( 12 ) );
@@ -557,30 +574,40 @@ End;
 
 procedure GoUp;
 Begin
+        SputnicX := PlayerX;
+        SputnicY := PlayerY;
         dec( PlayerY );
         countWait := 0
 End;
 
 procedure GoDown;
 Begin
+        SputnicX := PlayerX;
+        SputnicY := PlayerY;
         inc( PlayerY );
         countWait := 0
 End;
 
 procedure GoLeft;
 Begin
+        SputnicX := PlayerX;
+        SputnicY := PlayerY;
         dec( PlayerX );
         countWait := 0
 End;
 
 procedure GoRight;
 Begin
+        SputnicX := PlayerX;
+        SputnicY := PlayerY;
         inc( PlayerX );
         countWait := 0
 End;
 
 procedure StayHere;
 Begin
+        SputnicX := PlayerX;
+        SputnicY := PlayerY;
         inc( countWait );
         if countWait = MaxWait then
         begin
@@ -638,7 +665,6 @@ ReadPoint:      Code := ReadKey;
 
                 if ( ExitX = PlayerX ) and ( ExitY = PlayerY ) then
                 begin
-                        ShowMsgXY( 100, 100, 'BbI BbIurpa/\u!', green );
                         Win := 1;
                         EndGame;
                         GameOver := TRUE
@@ -651,10 +677,17 @@ ReadPoint:      Code := ReadKey;
                         EndGame;
                         GameOver := TRUE
                 end
+                else if SputnicAlive and ( FieldOfWar[ SputnicY, SputnicX ] = 2 ) then
+                begin
+                	SputnicAlive := FALSE;
+                        ShowMsgXY( 100, 100, 'R.I.P.', red );
+                        Boom( SputnicY, SputnicX );
+                end;
         until GameOver;
 End;
 
 procedure Start;
+	{ начинает новый уровень }
 Var i, j, n: Integer;
 Label Beginnings;
 Begin
@@ -677,6 +710,7 @@ Beginnings:
                 end;
 
         PlayerX := FacWidth; PlayerY := FacHeigth DIV 2;
+        SputnicX := PlayerX; SputnicY := PlayerY;
         ExitX := 1; ExitY := FacHeigth DIV 2;
         Armor := 5;
         if Level = 12 then
@@ -698,6 +732,101 @@ Beginnings:
         end
 End;
 
+procedure FirstDie;
+Begin
+	ClrScr;
+        Write( #1 + ': Ээ...' );
+        Delay( 2000 );
+        Write( ' Уй...' );
+        Delay( 500 );
+        WriteLn( ' Б####!' );
+        ReadLn;
+        WriteLn( #2 + ': Хм... Кажется наш герой пришёл в себя.' );
+        ReadLn;
+        Write( #1 + ': Ой...' );
+        Delay( 300 );
+        WriteLn( ' Кто ты?' );
+        ReadLn;
+        WriteLn( #2 + ': Ты меня не узнал?!' );
+        ReadLn;
+        Write( #1 + ': Элизабет?!' );
+        Delay( 500 );
+        WriteLn( ' Это правда ты?' );
+        ReadLn;
+        Write( #2 + ': Конечно же я. А кого ты хотел здесь увидеть?' );
+        Delay( 1000 );
+        WriteLn( ' Пушкина?' );
+        ReadLn;
+        WriteLn( #1 + ': Ну...' );
+        ReadLn;
+        WriteLn( #2 + ': Да... Видимо тебя сильно по башке ударило.' );
+        ReadLn;
+        WriteLn( #1 + ': Что ты здесь делаешь?' );
+        ReadLn;
+        WriteLn( #2 + ': Как это ЧТО?! Тебя спасаю, не видишь что ли? Спасибо сказал бы.' );
+        ReadLn;
+        Write( #1 + ': Спасибо!' );
+        Delay( 1000 );
+        WriteLn( ' А почему ты одна? Где остальные?' );
+        ReadLn;
+        WriteLn( #2 + ': ...' );
+        ReadLn;
+        WriteLn( #1 + ': С ними что-то случилось?' );
+        ReadLn;
+        WriteLn( #2 + ': Когда ты пропал, начальник экспедиции снарядил нас и отправил на поиски.' );
+        ReadLn;
+        WriteLn( #1 + ': Продолжай.' );
+        ReadLn;
+        Write( #2 + ': На нас напали роботы.' );
+        Delay( 1000 );
+        Write( ' Много роботов. И...' );
+        Delay( 2000 );
+        Write( ' Они все погибли.' );
+        Delay( 500 );
+        WriteLn( ' Прости, мне трудно говорить.' );
+        ReadLn;
+        Write( #1 + ': Мне очень жаль.' );
+        Delay( 1000 );
+        WriteLn( ' Что ж, пошли. Раньше выйдем - раньше придём на Базу.' );
+        ReadLn;
+        WriteLn( #2 + ': ...' );
+        ReadLn;
+        WriteLn( #1 + ': Лиз, чего ты ждёшь? Пошли!' );
+        ReadLn;
+        WriteLn( #2 + ': Мы не сможем вернуться на Базу.' );
+        Delay( 1000 );
+        SpellSent( ' Всё необходимое снаряжение было у Петровича. А ОНИ его убили. И забрали с собой всё.', 0, 0 );
+        ReadLn;
+        WriteLn( #1 + ': Тебя роботы тоже "обокрали"?' );
+        ReadLn;
+        Write( #2 + ': Нет.' );
+        Delay( 1000 );
+        SpellSent( ' У меня ничего и не было, я ведь биолог. К тому же, когда пришли роботы, я спряталась. Они меня не заметили. Поэтому я и осталась жива.', 0, 0 );
+        ReadLn;
+        WriteLn( #1 + ': И как же ты собралась меня спасать?' );
+        ReadLn;
+        Write( #2 + ': Не кричи на меня!' );
+        Delay( 1000 );
+        WriteLn( ' Это из-за тебя мы сюда попали. И вообще, мы же не знали, что здесь эти роботы.' );
+        Delay( 1000 );
+        Write( ' У меня кое-что есть.' );
+        Delay( 1000 );
+        Write( ' Вот.' );
+        Delay( 500 );
+        Write( ' Посмотри.' );
+        ReadLn;
+        WriteLn( #1 + ': Это лазерный пистолет!' );
+        ReadLn;
+        WriteLn( #2 + ': Я нашла это у нашего охранника. Наверное роботы пропустили эту вещь.' );	
+        Delay( 2000 );
+        WriteLn( ' Ты умеешь им пользоваться?' );
+        ReadLn;
+        Write( #1 + ' Умею.' );
+        Delay( 2000 );
+        WriteLn( ' И тебя научу.' );
+        ReadLn
+End;
+
 procedure ShowTextFirst;
 Begin
         TextColor( green );
@@ -711,11 +840,14 @@ Begin
         end
         else if ( Win = -1 ) and ( Lives = 2 ) then
         begin
+        	ClrScr;
                 TextColor( red );
                 WriteLn( 'Вы погибли.' );
                 ReadLn;
                 SendSMS( 'Создатель игры', 'Вы мертвы', 'Это игра и у Вас есть возможность начать заново. В реальной жизни у Вас такой возмлжности не будет.' )
         end
+        else if ( Win = -1 ) and ( Lives = 3 ) then
+                FirstDie
         else if ( Win = 0 ) and ( Level = 1 ) then
         begin
                 SendSMS( 'Создатель игры', 'Приветствие', 'Приветствую Вас в игре RobotZ! Сейчас я объясню Вам основную концепцию игры. Ваша цель - дойти до выхода на противоположном конце поля и не попасться роботам. Нажмите клавишу ЕНТЕР.' );
@@ -733,7 +865,7 @@ Begin
                 WriteLn( ' Когда будете готовы, нажмите ЕНТЕР.' );
                 ReadLn;
                 ReadyNote;
-                SpellSent( ' Я вошёл в разрушенное здание. Дверь за мной автоматически закрылась. Кажется, это помещение - цех по производству роботов.', 100, 200 );
+                SpellSent( ' Я вошёл в разрушенное здание. Дверь за мной автоматически закрылась. Кажется, это цех по производству роботов.', 100, 200 );
                 WriteLn;
                 SpellSent( ' Справа и слева от меня автоматические конвейеры. Единственный выход - на другом краю.', 100, 300 )
         end
@@ -819,7 +951,7 @@ Var  GDriver, GMode: Integer;
 Label Rep;
 Begin
         Level := 1; Lives := Hearts; Pts := 0;
-        countSMS := 1; Legend := TRUE;
+        countSMS := 1; Legend := TRUE; SputnicAlive := TRUE;
         Loaded := FALSE;
         GDriver := Detect;
         InitGraph( GDriver, GMode, '' );
