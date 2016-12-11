@@ -1,14 +1,20 @@
 program RoboGame;
 
 uses Graph, Crt, DOS;
-const FacWidth = 11; FacHeigth = 18;
-      ShansO = 500; ShansP = 12; ShansNewP = 22;
+const FacWidth = 11; FacHeigth = 18; { ширина и высота поля }
+      ShansO = 500; ShansP = 12; ShansNewP = 22; { базовые шансы генерации ям и роботов }
+      MaxWait = 5; Hearts = 3; { максимальное количество пропусков хода и количество жизней }
 var  FieldOfWar: array [ 1..FacHeigth, 1..FacWidth ] of SmallInt;
         { Игровое поле: 0 - яма, 1 - ничего, 2 - робот }
-     PlayerX, PlayerY, ExitX, ExitY, Armor, Level, Lives: SmallInt;
-     Pts: Integer; GameOver, Loaded: Boolean;
-     Win: ShortInt; countSMS: Byte;
-     Hour, Min, Sec, Hund: Word;
+     PlayerX, PlayerY, ExitX, ExitY, { координаты игрока и выхода }
+     Armor, Level, Lives { текущие значения боеприпасов, уровня и жизней }: SmallInt;
+     Pts: Integer; { очки }
+     GameOver, { нужно ли закончить игру? }
+     Loaded, { TRUE, если только что была загружено сохранение }
+     Legend { показывается ли красивая подсказка с расшифровкой символов }: Boolean;
+     countSMS, countWait: Byte; { счётчики СМС и пропусков хода }
+     Win: ShortInt; { 1 - выиграл, можно идти на следующий уровень,
+                     -1 - проиграл. В начале игры Win = 0 }
 
 function IntToStr( I: Integer ): String;
         { Преобразовывает значение типа Integer в строку }
@@ -19,6 +25,7 @@ Begin
 End;
 
 procedure Boom( i, j: SmallInt );
+	{ Анимация небольшого взрыва в клетке [ i, j ] }
 Var x, y: Integer;
 Begin
         x := 100 + j * 10 - 6;
@@ -42,9 +49,10 @@ Begin
 End;
 
 procedure Load;
+	{ Загружает сохранёнку }
 Var  F: Text; S: String;
 Begin
-        Assign( F, 'C:\Documents and Settings\save.txt' );
+        Assign( F, 'C:\Documents and Settings\save.sss' );
         Reset( F );
 
         ReadLn( F, Level );
@@ -57,9 +65,10 @@ Begin
 End;
 
 procedure Save;
+	{ Сохраняет игру }
 Var  F: Text;
 Begin
-        Assign( F, 'C:\Documents and Settings\save.txt' );
+        Assign( F, 'C:\Documents and Settings\save.sss' );
         Rewrite( F );
         Append( F );
 
@@ -72,6 +81,7 @@ Begin
 End;
 
 procedure Redraw;
+        { Обновляет картинку на экране }
 Var  i, j, X, Y: Integer;
 Begin
         SetFillStyle( 1, black );
@@ -125,15 +135,18 @@ Begin
 End;
 
 procedure MoveRobots;
+	{ двигает роботов и проверяет их столкновения }
 Var i, j, BBepx, BHu3, BLeBo, BnpaBo, count: SmallInt;
     MoveBuff: array [ 1..FacHeigth * FacWidth - 2, 1..2 ] of SmallInt;
+    { В этом массиве хранятся новые координаты всех роботов }
 Begin
-        count := 1;
+        count := 1; { счётчик роботов }
         for i := 1 to FacHeigth do
                 for j := 1 to FacWidth do
                 begin
-                        if FieldOfWar[ i, j ] = 2 then
+                        if FieldOfWar[ i, j ] = 2 then { стирает роботов }
                         begin
+                        	{ Если раскрыть закомментированые команды, то прямо во время игры можно проследить за передвижением роботов }
                                 { WriteLn( 'Отчёт робота №', count, '.', #13,'Координаты: i=', i, ', j=', j, ';' ); }
                                 BBepx := i - PlayerY;
                                 BHu3 := -BBepx;
@@ -173,23 +186,25 @@ Begin
                                         MoveBuff[ count, 2 ] := j - 1 { влево }
                                 end;
                                 inc( count );
-                                { WriteLn( '***КОНЕЦ ОТЧЁТА***' ); }
+                                { WriteLn( '***КОНЕЦ ОТЧЁТА***' );
+                                  ReadLn }
                         end
                 end;
-        for i := 1 to count - 1 do
+        for i := 1 to count - 1 do { рисует роботов в новом месте }
                 if ( FieldOfWar[ MoveBuff[ i, 1 ], MoveBuff[ i, 2 ] ] = 2 ) and not ( ( PlayerX = MoveBuff[ i, 2 ] ) and ( PlayerY = MoveBuff[ i, 1 ] ) ) then
                 begin
                         FieldOfWar[ MoveBuff[ i, 1 ], MoveBuff[ i, 2 ] ] := 3;
                         Boom( MoveBuff[ i, 1 ], MoveBuff[ i, 2 ] );
-                        inc( Pts, 10 )
+                        inc( Pts, 10 ) { +5 очков за каждого столкнувшегося робота }
                 end
                 else if FieldOfWar[ MoveBuff[ i, 1 ], MoveBuff[ i, 2 ] ] <> 0 then
                         FieldOfWar[ MoveBuff[ i, 1 ], MoveBuff[ i, 2 ] ] := 2
                 else if FieldOfWar[ MoveBuff[ i, 1 ], MoveBuff[ i, 2 ] ] = 0 then
-                        inc( Pts )
+                        inc( Pts ) { +1 очко за каждого упавшего в яму робота }
 End;
 
 procedure AddRobotz;
+	{ добавляет роботов в 4 углах }
 Begin
         FieldOfWar[ 1, 1 ] := 2;
         FieldOfWar[ 1, FacWidth ] := 2;
@@ -198,6 +213,7 @@ Begin
 End;
 
 procedure ShowMsgXY( x0, y0: Integer; Text: String; TxtColor: SmallInt );
+	{ выводит на экран сообщение в рамочке, типа "Вы достигли двери!" }
 Begin
         SetFillStyle( 1, white );
         Bar( x0 - 4, y0 - 1, x0 + Length( Text ) * 8 + 3, y0 + 9 );
@@ -206,6 +222,7 @@ Begin
 End;
 
 procedure DestroyRobotz;
+	{ взрывает всех роботов вокруг игрока; предусмотрены все случаи }
 Var i, j, DeadRob: Integer;
 Begin
         if Armor > 0 then
@@ -334,9 +351,58 @@ Begin
         end
 End;
 
+procedure HideLegend;
+	{ эффектное появление легенды }
+Var i: Byte;
+Begin
+	GoToXY( 1, 1 );
+        for i := 1 to 8 do
+        begin
+                Delay( 50 );
+                DelLine
+        end
+End;
+
+procedure BlokDGI;
+	{ выполняет повторяющиеся в след. процедуре действия }
+Begin
+	Delay( 50 );
+        GoToXY( 1, 1 );
+        InsLine
+End;
+
+procedure ShowLegend;
+	{ анимирует легенду }
+Begin
+	TextColor( white );
+        WriteLn( '"i" - показать/спрятать эту красивую подсказку.' );
+        BlokDGI;
+        InsLine;
+        TextColor( green );
+        WriteLn( '"+" - парадный выход; сюда нужно дойти.' );
+        BlokDGI;
+        TextColor( white );
+        WriteLn( '"." - свободное место; сюда можно идти.' );
+        BlokDGI;
+        TextColor( yellow );
+        WriteLn( '"' + #12 + '" - главный герой; берегите его!' );
+        BlokDGI;
+        TextColor( white );
+        WriteLn( '"O" - глубокая яма; смотрите под ноги!' );
+        BlokDGI;
+        TextColor( red );
+        WriteLn( '"P" - злобный робот; опасайтесь роботов!' );
+        BlokDGI;
+        TextColor( yellow );
+        WriteLn( 'ЛЕГЕНДА:' );
+        GoToXY( 1, 9 );
+End;
+
 procedure EndGame;
+	{ заканчивает уровень }
 Begin
         Delay( 300 );
+        HideLegend;
         ClearDevice;
         if Win = 1 then
         begin
@@ -382,10 +448,11 @@ Begin
 End;
 
 procedure History;
+	{ ролик в начале игры, рассказывает предысторию }
 Var  x, y, i, speed: Integer;
 Const n = 10;
 Begin
-        { y := 1024; x := GetMaxX DIV 2 - 60; speed := 500;
+        y := 1024; x := GetMaxX DIV 2 - 60; speed := 500;
         SetFillStyle( 1, Black ); SetColor( Yellow );
         for i := 0 to 120 do
         begin
@@ -419,7 +486,108 @@ Begin
                 Delay( speed );
                 ClearDevice
                 end
-        end }
+        end
+End;
+
+procedure SpellSent( Input: String; Prom, Pause: Integer );
+Var i: Byte; d: Boolean;
+Begin
+        d := FALSE;
+        for i := 1 to Length( Input ) do
+        begin
+                if KeyPressed then
+                begin
+                        Prom := 1;
+                        Pause := 1;
+                        d := TRUE
+                end;
+                Write( Input[ i ] );
+                if i MOD 80 = 0 then WriteLn;
+                if ( Input[ i ] = '.' ) or ( Input[ i ] = '?' ) or ( Input[ i ] = '!' ) then
+                        Delay( Pause )
+                else
+                        Delay( Prom )
+        end;
+        if d then
+        begin
+                ReadLn;
+                DelLine
+        end
+End;
+
+procedure SendSMS( Sender, Theme, MessTxt: String );
+Var  i: Byte; Hour, Min, Sec, Hund: Word; { часы, минуты, секунды и сотые доли секунды  }
+Begin
+        ClrScr;
+        TextColor( yellow + blink );
+        WriteLn( '         Notebook        ' );
+        TextColor( green );
+        WriteLn( 'Сообщение ', countSMS, '.' );
+        inc( countSMS );
+        WriteLn( 'От: ', Sender, '.' );
+        WriteLn( 'Тема: ', Theme, '.' );
+        GetTime( Hour, Min, Sec, Hund );
+        WriteLn( Level DIV 5 + 1, '/06/87 ', Hour, ':', Min );
+        Write( ' ' );
+        for i := 1 to Length( MessTxt ) do
+        begin
+                Write( MessTxt[ i ] );
+                if ( i + 1 ) MOD 80 = 0 then WriteLn
+        end;
+        { SpellSent( ' ' + MessTxt, 1, 1 ); }
+        WriteLn;
+        WriteLn( 'i Сообщение сохранено в директории Входящие.' );
+        ReadLn
+End;
+
+procedure ReadyNote;
+Var  Hour, Min, Sec, Hund: Word; { часы, минуты, секунды и сотые доли секунды  }
+Begin
+        ClrScr;
+        TextColor( yellow + blink );
+        WriteLn( '         Notebook        ' );
+        TextColor( green );
+        WriteLn( 'Заметка ', Level, '.' );
+        GetTime( Hour, Min, Sec, Hund );
+        if Min > 9 then
+                WriteLn( Level DIV 5 + 21, '/06/87 ', Hour, ':', Min )
+        else
+                WriteLn( Level DIV 5 + 21, '/06/87 ', Hour, ':0', Min )
+End;
+
+procedure GoUp;
+Begin
+        dec( PlayerY );
+        countWait := 0
+End;
+
+procedure GoDown;
+Begin
+        inc( PlayerY );
+        countWait := 0
+End;
+
+procedure GoLeft;
+Begin
+        dec( PlayerX );
+        countWait := 0
+End;
+
+procedure GoRight;
+Begin
+        inc( PlayerX );
+        countWait := 0
+End;
+
+procedure StayHere;
+Begin
+        inc( countWait );
+        if countWait = MaxWait then
+        begin
+                ReadyNote;
+                SpellSent( ' Я оказался в западне. Роботам до меня не добраться, но и долго сидеть здесь я тоже не смогу. Через какое-то время у меня закончится еда, и тогда мне конец.', 100, 200 );
+                GameOver := TRUE
+        end
 End;
 
 procedure PlayGame;
@@ -429,19 +597,33 @@ Begin
         repeat
 ReadPoint:      Code := ReadKey;
                 if ( ( Code = 'H' ) or ( Code = 'w' ) ) and ( PlayerY > 1 ) then
-                        dec( PlayerY )
+                        GoUp
                 else if ( ( Code = 'P' ) or ( Code = 's' ) ) and ( PlayerY < FacHeigth ) then
-                        inc( PlayerY )
+                        GoDown
                 else if ( ( Code = 'K' ) or ( Code = 'a' ) ) and ( PlayerX > 1 ) then
-                        dec( PlayerX )
+                        GoLeft
                 else if ( ( Code = 'M' ) or ( Code = 'd' ) ) and ( PlayerX < FacWidth ) then
-                        inc( PlayerX )
+                        GoRight
                 else if Code = #13 then
                         DestroyRobotz
                 else if Code = ' ' then
-                        { пропустить ход }
+                        StayHere
                 else if ( Code = 'q' ) or ( Code = 'й' ) then
                         GameOver := TRUE
+                else if ( Code = 'i' ) or ( Code = 'ш' ) then
+                begin
+                        if Legend then
+                        begin
+                                Legend := FALSE;
+                                HideLegend
+                        end
+                        else
+                        begin
+                                Legend := TRUE;
+                                ShowLegend
+                        end;
+                        GoTo ReadPoint
+                end
                 else if ( Code = 'l' ) or ( Code = 'д' ) then
                 begin
                         Load;
@@ -479,18 +661,7 @@ Begin
 Beginnings:
         ClearDevice; ClrScr;
 
-        if Level = 1 then
-        begin
-                TextColor( yellow + blink );
-                WriteLn( 'ЛЕГЕНДА:' );
-                TextColor( red );
-                WriteLn( '"P" - робот; опасайтесь роботов!' );
-                TextColor( white );
-                WriteLn( '"O" - яма; смотрите под ноги!' );
-                WriteLn( '"." - свободное место; сюда можно идти.' );
-                TextColor( green );
-                WriteLn( '"+" - выход; сюда нужно дойти.' )
-        end;
+        if Legend then ShowLegend;
 
         Randomize;
         for i := 1 to FacHeigth do
@@ -527,67 +698,14 @@ Beginnings:
         end
 End;
 
-procedure SpellSent( Input: String; Prom, Pause: Integer );
-Var i: Byte; d: Boolean;
-Begin
-        d := FALSE;
-        for i := 1 to Length( Input ) do
-        begin
-                if KeyPressed then
-                begin
-                        Prom := 0;
-                        Pause := 0;
-                        d := TRUE
-                end;
-                Write( Input[ i ] );
-                if i MOD 80 = 0 then WriteLn;
-                if ( Input[ i ] = '.' ) or ( Input[ i ] = '?' ) or ( Input[ i ] = '!' ) then
-                        Delay( Pause )
-                else
-                        Delay( Prom )
-        end;
-        if d then
-                ReadLn
-End;
-
-procedure SendSMS( Sender, Theme, MessTxt: String );
-Begin
-        ClrScr;
-        TextColor( yellow + blink );
-        WriteLn( '         NoteBook        ' );
-        TextColor( green );
-        WriteLn( 'Сообщение ', countSMS, '.' );
-        inc( countSMS );
-        WriteLn( 'От: ', Sender, '.' );
-        WriteLn( 'Тема: ', Theme, '.' );
-        GetTime( Hour, Min, Sec, Hund );
-        WriteLn( Level DIV 5 + 1, '/06/87 ', Hour, ':', Min );
-        SpellSent( ' ' + MessTxt, 1, 1 );
-        WriteLn;
-        WriteLn( 'i Сообщение сохранено в директории Входящие.' )
-End;
-
-procedure ReadyNote;
-Begin
-        ClrScr;
-        TextColor( yellow + blink );
-        WriteLn( '         NoteBook        ' );
-        TextColor( green );
-        WriteLn( 'Заметка ', Level, '.' );
-        GetTime( Hour, Min, Sec, Hund );
-        if Min > 9 then
-                WriteLn( Level DIV 5 + 1, '/06/87 ', Hour, ':', Min )
-        else
-                WriteLn( Level DIV 5 + 1, '/06/87 ', Hour, ':0', Min )
-End;
-
 procedure ShowTextFirst;
 Begin
         TextColor( green );
         if ( Win = -1 ) and ( Lives = 1 ) then
         begin
+                ClrScr;
                 TextColor( red );
-                WriteLn( 'Вы погибли.' );
+                WriteLn( 'Вы погибли...' );
                 ReadLn;
                 SendSMS( 'Неизвестно', 'Осторожнее..', 'Ты играешь со смертью.' )
         end
@@ -600,11 +718,7 @@ Begin
         end
         else if ( Win = 0 ) and ( Level = 1 ) then
         begin
-                ReadyNote;
-                SpellSent( ' Я вошёл в разрушенное здание. Дверь за мной автоматически закрылась. Кажется, это помещение - цех по производству роботов.', 100, 200 );
-                WriteLn;
-                SpellSent( ' Справа и слева от меня автоматические конвейеры. Единственный выход - на другом краю.', 100, 300 );
-                ReadLn;
+                SendSMS( 'Создатель игры', 'Приветствие', 'Приветствую Вас в игре RobotZ! Сейчас я объясню Вам основную концепцию игры. Ваша цель - дойти до выхода на противоположном конце поля и не попасться роботам. Нажмите клавишу ЕНТЕР.' );
                 ClrScr;
                 TextColor( yellow + blink );
                 WriteLn( ' УПРАВЛЕНИЕ:' );
@@ -612,12 +726,20 @@ Begin
                 SpellSent( ' Клавиши ВЛЕВО, ВВЕРХ, ВПРАВО и ВНИЗ перемещают героя в соответствующем направлении;', 1, 1 );
                 WriteLn;
                 WriteLn( ' ПРОБЕЛ - пропустить ход, герой стоит на месте;' );
-                WriteLn( '"q" - сохранить и выйти из игры.' )
+                WriteLn( '"q" - сохранить и выйти из игры.' );
+                WriteLn;
+                SpellSent( ' Сейчас Вы увидите заметку, которую написал главный герой игры. Внимательно её прочитайте. С этого момента начинается Ваша игра.', 0, 0 );
+                WriteLn;
+                WriteLn( ' Когда будете готовы, нажмите ЕНТЕР.' );
+                ReadLn;
+                ReadyNote;
+                SpellSent( ' Я вошёл в разрушенное здание. Дверь за мной автоматически закрылась. Кажется, это помещение - цех по производству роботов.', 100, 200 );
+                WriteLn;
+                SpellSent( ' Справа и слева от меня автоматические конвейеры. Единственный выход - на другом краю.', 100, 300 )
         end
         else if ( Win = 1 ) and ( Level = 2 ) then
         begin
                 SendSMS( 'Создатель игры', 'Мои поздравления', 'У Вас получилось! Согласитесь, это было не так уж и сложно. Посмотрим, как Вы справитесь со следующим уровнем.' );
-                ReadLn;
                 ReadyNote;
                 SpellSent( ' К счастью, у меня есть несколько дезинтегрирующих зарядов. Но мне нужно их экономить. Ещё не известно, что меня ждёт, когда я приближусь к выходу...', 100, 500 );
                 ReadLn;
@@ -628,7 +750,7 @@ Begin
                 WriteLn( ' Если Вас окружили роботы, нажмите ЕНТЕР, чтобы уничтожить их.' );
                 WriteLn( 'Зарядов ограниченное количество, поэтому не используйте их без необходимости.' );
                 ReadLn;
-                SendSMS( 'Создатель игры', 'Вы готовы',  'На этом Ваше обучение закончено. Теперь Вы знаете всё, что нужно, чтобы пройти эту игру. Желаю приятного времяпрепровождения.' )
+                SendSMS( 'Создатель игры', 'Вы готовы',  'На этом Ваше обучение закончено. Теперь Вы сами по себе. Желаю приятного времяпрепровождения.' )
         end
         else if ( Win = 1 ) and ( Level = 3 ) then
                 SpellSent( ' Похоже у роботов повреждено визуальное восприятие и они ничего не видят. Поэтому они и падают в ямы, как слепые котята. Что ж, мне это только на руку.', 100, 0 )
@@ -652,7 +774,7 @@ Begin
         begin
                 SpellSent( ' Я проклинаю тот день, когда вошёл на территорию этого завода. Но сегодня мне крупно повезло - я нашёл сломанный билитарионный ретранслятор! Из него я смогу собрать ещё один дезинтегрирующий заряд.', 100, 1000 );
                 WriteLn;
-                SpellSent( 'Уверен - он мне спасёт жизнь.', 100, 0 )
+                SpellSent( 'Возможно, он спасёт мне жизнь.', 100, 0 )
         end
         else if ( Win = 1 ) and ( Level = 13 ) then
                 SpellSent( ' Я совсем уже потерял надежду найти кого-нибудь живого.', 100, 0 )
@@ -696,8 +818,8 @@ procedure NewGame;
 Var  GDriver, GMode: Integer;
 Label Rep;
 Begin
-        Level := 1; Lives := 3; Pts := 0;
-        countSMS := 1;
+        Level := 1; Lives := Hearts; Pts := 0;
+        countSMS := 1; Legend := TRUE;
         Loaded := FALSE;
         GDriver := Detect;
         InitGraph( GDriver, GMode, '' );
@@ -724,8 +846,9 @@ Rep:
                 WriteLn( 'Нажмите ENTER...' );
                 ReadLn
         end
-        else if Win = 0 then
+        else if ( Win = 0 ) and ( countWait < MaxWait ) then
         begin
+                ClrScr;
                 TextColor( yellow + blink );
                 WriteLn( '         NoteBook        ' );
                 TextColor( white );
@@ -734,8 +857,18 @@ Rep:
                 TextColor( Green );
                 WriteLn( 'Ok!' );
                 TextColor( yellow );
-                WriteLn( 'Используйте клавишу "L" во время игры, чтобы загрузить это сохранение.' );
+                WriteLn( 'Используйте клавишу "L" во время следующей игры, чтобы загрузить это сохранение.' );
                 ReadLn
+        end
+        else if Win = 0 then
+        begin
+                ClrScr;
+                TextColor( white );
+                Write( ' Думаю, будет честно, если я предложу Вам начать уровень заново?' );
+                ReadLn;
+                GameOver := TRUE;
+                Win := 1;
+                GoTo Rep
         end;
         ClearDevice;
         CloseGraph
