@@ -21,4 +21,4 @@ When the player reaches the exit point, the player moves onto another level, wit
 
 Игрок должен дойти до выхода, чтобы перейти на следующий уровень, где его ждёт ещё больше роботов. Количество противников традиционно увеличивается с каждым уровнем.
 
-![скриншот](http://i.imgur.com/AR7VfMT.png)
+![скриншот](http://i.imgur.com/ult8T9u.png)
