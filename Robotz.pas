@@ -1060,7 +1060,7 @@ Begin
 End;
 
 procedure NewGame;
-Var  GDriver, GMode: Integer;
+Var  GDriver, GMode: SmallInt;
 Label Rep;
 Begin
         Level := 1; Lives := Hearts; Pts := 0;
